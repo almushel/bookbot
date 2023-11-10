@@ -1,3 +1,5 @@
+import calendar
+import time
 import os
 import os.path
 import urllib.error
@@ -11,30 +13,69 @@ GB_CATALOG = "/cache/epub/feeds/pg_catalog.csv.gz"
 ARCHIVE_PATH = f"{BOOK_DIR}{GB_CATALOG.split('/')[-1]}"
 
 def catalog_exists():
-	return os.path.isfile(ARCHIVE_PATH[:-3])
-# Fetch Project Gutenberg catalog from GB_CATALOG 
-def get_catalog():
+	return os.path.isfile(ARCHIVE_PATH)
+
+def parse_date(date):
+# Fri, 10 Nov 2023 18:49:22 GMT
+	month_values = {"Jan": 1, "Feb": 2, "Mar": 3, "Apr": 4, "May": 5, "Jun": 6, "Jul": 7, "Aug": 8, "Sep": 9, "Oct": 10, "Nov": 11, "Dec": 12 }
+	date_length = len(date)
+
+	start = 5	
+	day = date[start:-date_length+(start+2)]
+	
+	start += 3
+	month = date[start:-date_length+(start+3)]
+
+	start += 4
+	year = date[start:-date_length+(start+4)]
+
+	start += 5
+	hours = date[start:-date_length+(start+2)]
+
+	start += 3
+	minutes = date[start:-date_length+(start+2)]
+
+	start += 3
+	seconds = date[start:-date_length+(start+2)]
+
+	return (int(year), month_values[month], int(day), int(hours), int(minutes), int(seconds))
+	
+def update_catalog():
+	update = True
+	print("Checking for catalog updates...")
 	try:
 		if os.path.isdir(BOOK_DIR) == False:
 			os.makedirs(BOOK_DIR)
-		temp_file, headers = urllib.request.urlretrieve(f"{GB_HOST}{GB_CATALOG}")
+		
+		response = urllib.request.urlopen(f"{GB_HOST}{GB_CATALOG}")
+
+		if catalog_exists():
+			local_modified = os.path.getmtime(ARCHIVE_PATH)
+			local_modified = time.gmtime(local_modified)
+			local_modified = time.strftime("%a, %d %b %Y %H:%M:%S GMT", local_modified)
+			remote_modified = response.getheader("last-modified")
+
+			local_modified = parse_date(local_modified)
+			remote_modified = parse_date(remote_modified)
+
+			for i in range(len(local_modified)):
+				if local_modified[i] >= remote_modified[i]:
+					update = False
+					break
 	except:
+		# TO-DO: Some actual error handling
 		pass
 	else:
-		with open(temp_file, "rb") as temp_stream:
-			temp_buf = temp_stream.read()
+		if update:
+			print("Updating catalog...")
+			temp_buf = response.read()
 			with open(ARCHIVE_PATH, "wb") as save_stream:
 				save_stream.seek(0)
-				save_stream.write(temp_buf)	
-
-			with open(ARCHIVE_PATH[:-3], "wb") as save_stream:
-				with gzip.open(ARCHIVE_PATH) as gz_file:
-					gz_buffer = gz_file.read()
-					save_stream.write(gz_buffer)
+				save_stream.write(temp_buf)
 
 def search_catalog(keywords, fields=["Title"], language="en"):
 	result = []
-	with open(ARCHIVE_PATH[:-3]) as csvfile:
+	with gzip.open(ARCHIVE_PATH, "rt") as csvfile:
 		reader = csv.DictReader(csvfile)
 		for row in reader:
 			if row["Language"] != language: continue
@@ -100,17 +141,22 @@ def print_report(book_path):
 	print("\n--- End report ---")
 
 if __name__ == "__main__":
-	print("Downloading and printing word report for all EN/.TXT ebooks for 'Frankenstein' on Project Gutenberg")
-	if not catalog_exists():
-		get_catalog()
+	keywords = ["frankenstein"]
+	update_catalog()
 
 	if catalog_exists():
-		search_results = search_catalog(["frankenstein"])
+		print(f"Searching for keywords {keywords}") 
+		search_results = search_catalog(keywords)
 		for result in search_results:
-			download_title(result["Text#"], result["Title"])
 			book_path = f"{BOOK_DIR}{result['Text#']}-{result['Title']}.txt"
 			if os.path.isfile(book_path):
+				print(f"Local TXT file for {result['Text#']}: {result['Title']}" )
+			else:
+				print(f"Attempting to download .txt format for {result['Text#']}: {result['Title']}")
+				download_title(result["Text#"], result["Title"])
+
+			if os.path.isfile(book_path):
 				print(f"{result['Text#']}: {result['Title']}")
-				print_report(book_path)
+#				print_report(book_path)
 	else:
 		print("Failed to download catalog")
