@@ -1,4 +1,3 @@
-import calendar
 import time
 import os
 import os.path
@@ -15,8 +14,8 @@ ARCHIVE_PATH = f"{BOOK_DIR}{GB_CATALOG.split('/')[-1]}"
 def catalog_exists():
 	return os.path.isfile(ARCHIVE_PATH)
 
-def parse_date(date):
-# Fri, 10 Nov 2023 18:49:22 GMT
+def parse_date_header(date):
+	# Mon, 00 Jan 2023 00:00:00 GMT
 	month_values = {"Jan": 1, "Feb": 2, "Mar": 3, "Apr": 4, "May": 5, "Jun": 6, "Jul": 7, "Aug": 8, "Sep": 9, "Oct": 10, "Nov": 11, "Dec": 12 }
 	date_length = len(date)
 
@@ -50,15 +49,10 @@ def update_catalog():
 		response = urllib.request.urlopen(f"{GB_HOST}{GB_CATALOG}")
 
 		if catalog_exists():
-			local_modified = os.path.getmtime(ARCHIVE_PATH)
-			local_modified = time.gmtime(local_modified)
-			local_modified = time.strftime("%a, %d %b %Y %H:%M:%S GMT", local_modified)
-			remote_modified = response.getheader("last-modified")
+			local_modified = time.gmtime( os.path.getmtime(ARCHIVE_PATH) )
+			remote_modified = parse_date_header( response.getheader("last-modified") )
 
-			local_modified = parse_date(local_modified)
-			remote_modified = parse_date(remote_modified)
-
-			for i in range(len(local_modified)):
+			for i in range(len(remote_modified)):
 				if local_modified[i] >= remote_modified[i]:
 					update = False
 					break
@@ -95,14 +89,11 @@ def download_title(title_number, filename=None):
 	except:
 		pass
 	else:
-		print(url)
 		with open(file_name, "rb") as temp_file:
 			buf = temp_file.read() 
 			with open(f"{BOOK_DIR}{title_number}-{filename}.txt", "wb") as save_file:
 				save_file.seek(0)
 				save_file.write(buf) 
-
-
 
 def count_words(words):
 	return len(words.split())
@@ -156,7 +147,7 @@ if __name__ == "__main__":
 				download_title(result["Text#"], result["Title"])
 
 			if os.path.isfile(book_path):
-				print(f"{result['Text#']}: {result['Title']}")
+				print(f"Downloaded {result['Text#']}: {result['Title']}")
 #				print_report(book_path)
 	else:
-		print("Failed to download catalog")
+		print("Failed to open catalog")
