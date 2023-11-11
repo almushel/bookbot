@@ -39,14 +39,12 @@ def parse_date_header(date):
 
 	return (int(year), month_values[month], int(day), int(hours), int(minutes), int(seconds))
 	
-def update_catalog():
-	update = True
-	print("Checking for catalog updates...")
-
+def check_for_catalog_updates():
 	try:
 		response = urllib.request.urlopen(f"{GB_HOST}{GB_CATALOG}")
 	except urllib.error.URLError as e:
 		print(e)	
+		return False, None
 	else:
 		if catalog_exists():
 			local_modified = time.gmtime( os.path.getmtime(ARCHIVE_PATH) )
@@ -54,23 +52,30 @@ def update_catalog():
 
 			for i in range(len(remote_modified)):
 				if local_modified[i] >= remote_modified[i]:
-					update = False
-					break
-
-		if update:
-			print("Updating catalog...")
-
-			if not os.path.isdir(BOOK_DIR): os.makedirs(BOOK_DIR)
-
-			temp_buf = response.read()
-			with open(ARCHIVE_PATH, "wb") as save_stream:
-				save_stream.seek(0)
-				save_stream.write(temp_buf)
-
-			print("Catalog updated.")
-		else:
-			print("No updates found.")
+					response.close()
+					return False, response
+	
+	return True, response
 			
+def download_catalog(response=None):
+	try:
+		if response is None:
+			response = urllib.request.urlopen(f"{GB_HOST}{GB_CATALOG}")
+	except urllib.error.URLError as e:
+		print(e)	
+		return False
+	else:
+		if not os.path.isdir(BOOK_DIR): os.makedirs(BOOK_DIR)
+
+		temp_buf = response.read()
+		response.close()
+
+		with open(ARCHIVE_PATH, "wb") as save_stream:
+			save_stream.seek(0)
+			save_stream.write(temp_buf)
+
+	return True
+
 def search_catalog(keywords, fields=["Title"], language="en"):
 	result = []
 	with gzip.open(ARCHIVE_PATH, "rt") as csvfile:
@@ -139,7 +144,15 @@ def print_report(book_path):
 
 if __name__ == "__main__":
 	keywords = ["frankenstein"]
-	update_catalog()
+
+	print("Checking for catalog updates...")
+	update, response = check_for_catalog_updates()	
+	if update:
+		print("Updating catalog...")
+		update = download_catalog(response)
+		print("Catalog updated.")
+	else:
+		print("No updates found.")	
 
 	if catalog_exists():
 		print(f"Searching for keywords {keywords}...") 
