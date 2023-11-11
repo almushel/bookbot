@@ -42,12 +42,12 @@ def parse_date_header(date):
 def update_catalog():
 	update = True
 	print("Checking for catalog updates...")
-	try:
-		if os.path.isdir(BOOK_DIR) == False:
-			os.makedirs(BOOK_DIR)
-		
-		response = urllib.request.urlopen(f"{GB_HOST}{GB_CATALOG}")
 
+	try:
+		response = urllib.request.urlopen(f"{GB_HOST}{GB_CATALOG}")
+	except urllib.error.URLError as e:
+		print(e)	
+	else:
 		if catalog_exists():
 			local_modified = time.gmtime( os.path.getmtime(ARCHIVE_PATH) )
 			remote_modified = parse_date_header( response.getheader("last-modified") )
@@ -56,17 +56,21 @@ def update_catalog():
 				if local_modified[i] >= remote_modified[i]:
 					update = False
 					break
-	except:
-		# TO-DO: Some actual error handling
-		pass
-	else:
+
 		if update:
 			print("Updating catalog...")
+
+			if not os.path.isdir(BOOK_DIR): os.makedirs(BOOK_DIR)
+
 			temp_buf = response.read()
 			with open(ARCHIVE_PATH, "wb") as save_stream:
 				save_stream.seek(0)
 				save_stream.write(temp_buf)
 
+			print("Catalog updated.")
+		else:
+			print("No updates found.")
+			
 def search_catalog(keywords, fields=["Title"], language="en"):
 	result = []
 	with gzip.open(ARCHIVE_PATH, "rt") as csvfile:
@@ -80,20 +84,22 @@ def search_catalog(keywords, fields=["Title"], language="en"):
 						result.append(row)
 	return result
 
-def download_title(title_number, filename=None):
-	if filename is None:
-		filename = title_number
-	url = f"{GB_HOST}/files/{title_number}/{title_number}-0.txt"
-	try:
-		file_name, headers = urllib.request.urlretrieve(url)
-	except:
-		pass
+def download_title(title_number, title=None):
+	if title is None:
+		file_name = f"{title_number}"
 	else:
-		with open(file_name, "rb") as temp_file:
-			buf = temp_file.read() 
-			with open(f"{BOOK_DIR}{title_number}-{filename}.txt", "wb") as save_file:
-				save_file.seek(0)
-				save_file.write(buf) 
+		file_name = f"{title_number} - {title}"
+	url = f"{GB_HOST}/files/{title_number}/{title_number}-0.txt"
+
+	try:
+		response = urllib.request.urlopen(url)
+	except urllib.error.URLError as e:
+		print(e)
+	else:
+		buf = response.read() 
+		with open(f"{BOOK_DIR}{file_name}.txt", "wb") as save_file:
+			save_file.seek(0)
+			save_file.write(buf) 
 
 def count_words(words):
 	return len(words.split())
@@ -136,7 +142,7 @@ if __name__ == "__main__":
 	update_catalog()
 
 	if catalog_exists():
-		print(f"Searching for keywords {keywords}") 
+		print(f"Searching for keywords {keywords}...") 
 		search_results = search_catalog(keywords)
 		for result in search_results:
 			book_path = f"{BOOK_DIR}{result['Text#']}-{result['Title']}.txt"
