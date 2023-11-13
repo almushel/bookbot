@@ -25,29 +25,20 @@ FILE_EXTENSIONS = {
 
 book_dir = DEFAULT_BOOK_DIR
 
+# Expected date format: "Mon, 00 Jan 2023 00:00:00 GMT"
 def __parse_date_header(date):
-	# Mon, 00 Jan 2023 00:00:00 GMT
 	month_values = {"Jan": 1, "Feb": 2, "Mar": 3, "Apr": 4, "May": 5, "Jun": 6, "Jul": 7, "Aug": 8, "Sep": 9, "Oct": 10, "Nov": 11, "Dec": 12 }
 
-	start = 5	
-	day = date[start:start+2]
-	
-	start += 3
-	month = date[start:start+3]
+	date_words = date.split(" ")
+	if len(date_words) >= 5:
+		day, month, year, clock = date_words[1: 5]
 
-	start += 4
-	year = date[start:start+4]
+		clock_words = clock.split(":")
+		if len(clock_words) == 3:
+			hours, minutes, seconds = clock.split(":")
+			return (int(year), month_values[month], int(day), int(hours), int(minutes), int(seconds))
 
-	start += 5
-	hours = date[start:start+2]
-
-	start += 3
-	minutes = date[start:start+2]
-
-	start += 3
-	seconds = date[start:start+2]
-
-	return (int(year), month_values[month], int(day), int(hours), int(minutes), int(seconds))
+	return (0,0,0,0,0,0)
 
 def get_local_catalog_path():
 	return book_dir+"catalog.csv.gz"
@@ -98,12 +89,12 @@ def download_catalog(response=None):
 
 	return True
 
-def search_catalog(keywords, fields=["Title"], language="en"):
+def search_catalog(keywords, fields=["Title"], languages=["en"]):
 	result = []
 	with gzip.open(get_local_catalog_path(), "rt") as csvfile:
 		reader = csv.DictReader(csvfile)
 		for row in reader:
-			if row["Language"] != language: continue
+			if row["Language"] not in languages: continue
 			if row["Type"] == "Sound": continue
 
 			for key in row:
@@ -113,8 +104,7 @@ def search_catalog(keywords, fields=["Title"], language="en"):
 						result.append(row)
 	return result
 
-def download_title(title_number, title=None, format = "txt"):
-	file_name = format_file_name(title_number, title)
+def download_title(title_number, title=None, format="txt"):
 	url = GB_HOST+GB_CACHE_PATH+f"/{title_number}/pg{title_number}"+FILE_EXTENSIONS[format]
 
 	try:
@@ -123,7 +113,7 @@ def download_title(title_number, title=None, format = "txt"):
 		print(e)
 		return False
 	else:
-		file_path = book_dir+file_name+FILE_EXTENSIONS[format]
+		file_path = book_dir+format_file_name(title_number, title, format)
 		buf = response.read() 
 		with open(file_path, "wb") as save_file:
 			save_file.seek(0)
