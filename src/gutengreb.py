@@ -23,6 +23,10 @@ FILE_EXTENSIONS = {
 	"txt-utf8"				: ".txt.utf8"
 }
 
+SEARCH_FIELDS = {
+	"Title", "Authors", "Subjects", "Bookshelves"
+}
+
 book_dir = DEFAULT_BOOK_DIR
 
 # Expected date format: "Mon, 00 Jan 2023 00:00:00 GMT"
