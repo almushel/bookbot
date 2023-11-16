@@ -40,8 +40,9 @@ if __name__ == "__main__":
 	parser.add_argument("keywords", type=comma_separated_list, help="Search keywords. In (-d)ownload mode, list of ebook text #s")
 	parser.add_argument("-f", "--formats", type=comma_separated_list, default=["txt"], help="ebook formats to download")
 	parser.add_argument("-f2", "--fields", type=comma_separated_list, default=["Title"], help="Metadata fields to search for keywords")
+#	parser.add_argument("--skipUpdate", action="store_true", help="Skip catalog update and download")
 #	parser.add_argument("-o", "--out", type=str, help="Output directory for downloaded files") 
-#	parser.add_argument("-r", "--report", type=str, help="Print metadata report for search results.")
+	parser.add_argument("-r", "--report", action="store_true", help="Print metadata for all ebooks found or downloaded.")
 
 	group = parser.add_mutually_exclusive_group()
 	group.add_argument("-d", "--download", action="store_true", help="Download ebooks, given list of Project Gutenbook book text #s")
@@ -69,7 +70,6 @@ if __name__ == "__main__":
 			search_results = greb.search_catalog(args.keywords, args.fields)
 		else: # not catalog_exists()
 			print("Failed to open catalog")
-
 	else: # Download-only mode
 		for word in args.keywords:
 			if word.isnumeric():
@@ -97,5 +97,14 @@ if __name__ == "__main__":
 		output = ""
 		for result in search_results:
 			output += result["Text#"]+","
-		output = output[:-1]
-		print(output)
+		print(output[:-1])
+
+	if args.report:
+		width = os.get_terminal_size()[0]
+		divider = "\n" + "-" * (width//1) + "\n"
+		print("\nGREB RESULTS:")
+		print(divider)
+		for result in search_results:
+			for key in result:
+				print(f"{key}: {result[key]}")
+			print(divider)
