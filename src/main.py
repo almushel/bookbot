@@ -40,9 +40,9 @@ if __name__ == "__main__":
 	parser.add_argument("keywords", type=comma_separated_list, help="Search keywords. In (-d)ownload mode, list of ebook text #s")
 	parser.add_argument("-f", "--formats", type=comma_separated_list, default=["txt"], help="ebook formats to download")
 	parser.add_argument("-f2", "--fields", type=comma_separated_list, default=["Title"], help="Metadata fields to search for keywords")
-#	parser.add_argument("--skipUpdate", action="store_true", help="Skip catalog update and download")
 #	parser.add_argument("-o", "--out", type=str, help="Output directory for downloaded files") 
-	parser.add_argument("-r", "--report", action="store_true", help="Print metadata for all ebooks found or downloaded.")
+	parser.add_argument("--noupdate", action="store_true", help="Skip catalog update check")
+	parser.add_argument("-r", "--report", action="store_true", help="Print metadata for all search and download results.")
 
 	group = parser.add_mutually_exclusive_group()
 	group.add_argument("-d", "--download", action="store_true", help="Download ebooks, given list of Project Gutenbook book text #s")
@@ -54,30 +54,31 @@ if __name__ == "__main__":
 
 #	if args.out: greb.book_dir = args.out
 
-	print("Checking for catalog updates...")
-	update, response = greb.check_for_catalog_updates()	
-	if update:
-		print("Updating catalog...")
-		update = greb.download_catalog(response)
-		print("Catalog updated.")
-	else:
-		print("No updates found.")	
+	if not args.noupdate:
+		print("Checking for catalog updates...")
+		update, response = greb.check_for_catalog_updates()	
+		if update:
+			print("Updating catalog...")
+			update = greb.download_catalog(response)
+			print("Catalog updated.")
+		else:
+			print("No updates found.")	
 
 	search_results = []
-	if not args.download:
-		if greb.catalog_exists():
-			print(f"Searching for keywords {args.keywords} in fields {args.fields}...") 
-			search_results = greb.search_catalog(args.keywords, args.fields)
-		else: # not catalog_exists()
-			print("Failed to open catalog")
-	else: # Download-only mode
-		for word in args.keywords:
-			if word.isnumeric():
-				result = greb.search_catalog([word], ["Text#"])
-				if len(result):	search_results.append( result[0] )	
-				else:			print(f"Text number {word} not found.")
-			else:
-				print(f"Invalid Text#: {word}")	
+	if greb.catalog_exists():
+		if not args.download:
+				print(f"Searching for keywords {args.keywords} in fields {args.fields}...") 
+				search_results = greb.search_catalog(args.keywords, args.fields)
+		else: # Download-only mode
+			for word in args.keywords:
+				if word.isnumeric():
+					result = greb.search_catalog([word], ["Text#"])
+					if len(result):	search_results.append( result[0] )	
+					else:			print(f"Text number {word} not found.")
+				else:
+					print(f"Invalid Text#: {word}")	
+	else: # not catalog_exists()
+		print("Failed to open catalog")
 
 	if not args.search:
 		for result in search_results:
