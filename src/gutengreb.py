@@ -93,6 +93,7 @@ def download_catalog(response=None):
 
 	return True
 
+# TO-DO: Improve field parsing (e.g. author lastname, firstname format)
 def search_catalog(keywords, fields=["Title"], languages=["en"]):
 	result = []
 	with gzip.open(get_local_catalog_path(), "rt") as csvfile:

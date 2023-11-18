@@ -1,6 +1,14 @@
 import argparse
 import os.path
+import enum
 import gutengreb as greb
+
+class Interactive_Modes(enum.IntEnum):
+	MODE_SELECT = 0
+	SEARCH = enum.auto()
+	REMOVE = enum.auto()
+	VIEW = enum.auto()
+	FINISH = enum.auto()
 
 def comma_separated_list(list_str):
 	return list_str.split(",")
@@ -45,6 +53,7 @@ if __name__ == "__main__":
 	parser.add_argument("-r", "--report", action="store_true", help="Print metadata for all search and download results.")
 
 	group = parser.add_mutually_exclusive_group()
+	group.add_argument("-i", "--interactive", action="store_true", help="Run in interactive mode")
 	group.add_argument("-d", "--download", action="store_true", help="Download ebooks, given list of Project Gutenbook book text #s")
 	group.add_argument("-s", "--search", action="store_true", help="Search catalog and print as list of text #s")
 	
@@ -66,7 +75,75 @@ if __name__ == "__main__":
 
 	search_results = []
 	if greb.catalog_exists():
-		if not args.download:
+		if args.interactive:
+			# TO-DO: Handle keyword/fields args
+			state = Interactive_Modes.MODE_SELECT
+			running = True
+
+			while running:
+				if state == Interactive_Modes.MODE_SELECT:
+					prompt_input = input("(s)earch, (r)emove from results, (v)iew results, (f)inish\n")	
+					if prompt_input == "s":
+						state = Interactive_Modes.SEARCH
+					elif prompt_input == "r":
+						state = Interactive_Modes.REMOVE
+					elif prompt_input == "v":
+						state = Interactive_Modes.VIEW
+					elif prompt_input == "f":
+						state = Interactive_Modes.FINISH
+					else:
+						print("Invalid command")
+
+				elif state == Interactive_Modes.SEARCH:
+					prompt_input = input("Search keywords (comma-separated): ")
+					keywords = prompt_input.split(",")
+					prompt_input = input("Search fields (comma-separated): ")
+					fields = prompt_input.split(",")
+					print(f"Searching for {keywords} in {fields}")
+					new_results = greb.search_catalog(keywords, fields)
+					print("Search results: ")
+					for r in new_results:
+						print(f"{r['Text#']}: {r['Title']}")
+					prompt_input = input("Add to final results? (y) or (n) ")
+					if prompt_input == "y":
+						for r in new_results:
+							if r not in search_results:
+								search_results.append(r)
+					else:
+						print("Results discarded")
+					state = Interactive_Modes.MODE_SELECT
+
+				elif state == Interactive_Modes.REMOVE:
+					prompt_input = input("Title number to remove: ")
+					if prompt_input.isnumeric():
+						for result in search_results:
+							if result["Text#"] == prompt_input:
+								search_results.remove(result)
+								print(f"Text#{prompt_input} removed")
+					else: 
+						print("Invalid Text#")
+					state = Interactive_Modes.MODE_SELECT
+
+				elif state == Interactive_Modes.VIEW:
+					# TO-DO: Re-use args.report behavior
+					prompt_input = input("View (s)imple or (d)etailed summary? ")
+					if prompt_input == "s":
+						for result in search_results:
+							print(f"{result['Text#']}: {result['Title']}")
+						state = Interactive_Modes.MODE_SELECT
+					elif prompt_input == "d":
+						for result in search_results:
+							for key in result:
+								print(f"{key}: {result[key]}")
+						state = Interactive_Modes.MODE_SELECT
+					else:
+						print("Invalid command")
+
+				elif state == Interactive_Modes.FINISH:
+					print("Finishing...")
+					running = False
+
+		elif not args.download:
 				print(f"Searching for keywords {args.keywords} in fields {args.fields}...") 
 				search_results = greb.search_catalog(args.keywords, args.fields)
 		else: # Download-only mode
