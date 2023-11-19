@@ -129,12 +129,11 @@ if __name__ == "__main__":
 					prompt_input = input("View (s)imple or (d)etailed summary? ")
 					if prompt_input == "s":
 						for result in search_results:
-							print(f"{result['Text#']}: {result['Title']}")
+							print(result.summary())
 						state = Interactive_Modes.MODE_SELECT
 					elif prompt_input == "d":
 						for result in search_results:
-							for key in result:
-								print(f"{key}: {result[key]}")
+							print(result)
 						state = Interactive_Modes.MODE_SELECT
 					else:
 						print("Invalid command")
@@ -162,7 +161,7 @@ if __name__ == "__main__":
 			for format in args.formats:
 				book_path = greb.book_dir+greb.format_file_name(result["Text#"], result["Title"], format)
 				if os.path.isfile(book_path):
-					print(f"Local copy exists for {format} for {result['Text#']}: {result['Title']}.")
+					print(f"Local copy exists for {format} for {result.description()}")
 					continue
 
 				print(f"Attempting to download {format} for {result['Text#']}: {result['Title']}.")

@@ -1,6 +1,7 @@
 import time
 import os
 import os.path
+from tkinter import W
 import urllib.error
 import urllib.request
 import gzip
@@ -29,8 +30,31 @@ SEARCH_FIELDS = {
 
 book_dir = DEFAULT_BOOK_DIR
 
+class Greb_Result:
+	def __init__(self, relevance = 0, row = {}):
+		# type: (int, dict) -> None
+		self.relevance = relevance
+		self.row = row
+
+	def description(self):
+		return "{}: {}".format(self.row["Text#"], self.row["Title"])
+	
+	def __getitem__(self, key):
+		return self.row[key]
+	
+	def __eq__(self, other):
+		result = isinstance(other, Greb_Result)
+		result = (other.row == self.row)	
+		return result
+
+	def __str__(self):
+		result = ""
+		for key in self.row:
+			result += "{}: {}".format(key, self.row[key])
+
 # Expected date format: "Mon, 00 Jan 2023 00:00:00 GMT"
 def __parse_date_header(date):
+	# type: (str) -> tuple[int, int, int, int, int, int]
 	month_values = {"Jan": 1, "Feb": 2, "Mar": 3, "Apr": 4, "May": 5, "Jun": 6, "Jul": 7, "Aug": 8, "Sep": 9, "Oct": 10, "Nov": 11, "Dec": 12 }
 
 	date_words = date.split(" ")
@@ -45,18 +69,23 @@ def __parse_date_header(date):
 	return (0,0,0,0,0,0)
 
 def get_local_catalog_path():
+	# type: () -> str
 	return book_dir+"catalog.csv.gz"
 
 def catalog_exists():
+	# type: () -> bool
 	return os.path.isfile( get_local_catalog_path() )
 
 def format_file_name(title_number, title, file_format):
+	# type (str, str, str) -> str
 	result = f"{title_number}"
 	if title:
 		result = f"{title_number} - {title}"
 	return result+FILE_EXTENSIONS[file_format]
 	
 def check_for_catalog_updates():
+	# type: () -> tuple[bool, urllib.request._UrlopenRet]
+	
 	try:
 		response = urllib.request.urlopen(GB_HOST+GB_CATALOG_PATH)
 	except urllib.error.URLError as e:
@@ -75,6 +104,7 @@ def check_for_catalog_updates():
 	return True, response
 			
 def download_catalog(response=None):
+	# type: (urllib.request._UrlopenRet) -> bool
 	try:
 		if response is None:
 			response = urllib.request.urlopen(f"{GB_HOST}{GB_CATALOG_PATH}")
@@ -95,6 +125,7 @@ def download_catalog(response=None):
 
 # TO-DO: Improve field parsing (e.g. author lastname, firstname format)
 def search_catalog(keywords, fields=["Title"], languages=["en"]):
+	# type: (list[str], list[str], list[str]) -> list[Greb_Result]
 	result = []
 	with gzip.open(get_local_catalog_path(), "rt") as csvfile:
 		reader = csv.DictReader(csvfile)
@@ -102,14 +133,24 @@ def search_catalog(keywords, fields=["Title"], languages=["en"]):
 			if row["Language"] not in languages: continue
 			if row["Type"] == "Sound": continue
 
+			new_result = Greb_Result(row=row)
 			for key in row:
 				if key not in fields: continue
+
+				r = row[key].lower()
 				for word in keywords:
-					if word.lower() in row[key].lower():
-						result.append(row)
+					found = True
+					for w in word.lower().split(" "):
+						if w not in r:
+							found = False
+					if found:
+						new_result.relevance += 1
+						if new_result not in result:
+							result.append(new_result)
 	return result
 
 def download_title(title_number, title=None, format="txt"):
+	# type: (str, str|None, str) -> bool
 	url = GB_HOST+GB_CACHE_PATH+f"/{title_number}/pg{title_number}"+FILE_EXTENSIONS[format]
 
 	try:
