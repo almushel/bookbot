@@ -1,4 +1,6 @@
 import argparse
+from re import search
+import sys
 import os.path
 import enum
 import gutengreb as greb
@@ -19,9 +21,9 @@ def validate_args(args):
 		if val in greb.FILE_EXTENSIONS:
 			formats.append(val)
 		else:
-			print(f"Invalid file format \"{val}\" ignored.")
+			print(f"Invalid file format \"{val}\" ignored.", file=sys.stderr)
 	if not len(formats):
-		print("No valid file formats found. Exiting.")
+		print("No valid file formats found. Exiting.", file=sys.stderr)
 		return False
 
 	fields = []
@@ -29,15 +31,85 @@ def validate_args(args):
 		if val in greb.SEARCH_FIELDS:
 			fields.append(val)
 		else:
-			print(f"Invalid search field \"{val}\" ignored.")
+			print(f"Invalid search field \"{val}\" ignored.", file=sys.stderr)
 	if not len(fields):
-		print("No valid search fields found. Exiting.")
+		print("No valid search fields found. Exiting.", file=sys.stderr)
 		return False
 
 	args.formats = formats
 	args.fields = fields
 
 	return True
+
+def interactive_mode(args):
+	search_results = []
+	state = Interactive_Modes.MODE_SELECT
+	running = True
+
+	while running:
+		if state == Interactive_Modes.MODE_SELECT:
+			prompt_input = input("(s)earch, (r)emove from results, (v)iew results, (f)inish\n")	
+			if prompt_input == "s":
+				state = Interactive_Modes.SEARCH
+			elif prompt_input == "r":
+				state = Interactive_Modes.REMOVE
+			elif prompt_input == "v":
+				state = Interactive_Modes.VIEW
+			elif prompt_input == "f":
+				state = Interactive_Modes.FINISH
+			else:
+				print("Invalid command")
+
+		elif state == Interactive_Modes.SEARCH:
+			prompt_input = input("Search keywords (comma-separated): ")
+			keywords = prompt_input.split(",")
+			prompt_input = input("Search fields (comma-separated): ")
+			fields = prompt_input.split(",")
+
+			print(f"Searching for {keywords} in {fields}")
+			new_results = greb.search_catalog(keywords, fields)
+			
+			print("Search results: ")
+			for r in new_results:
+				print(r.description())
+			prompt_input = input("Add to final results? (y) or (n) ")
+			if prompt_input == "y":
+				for r in new_results:
+					if r not in search_results:
+						search_results.append(r)
+			else:
+				print("Results discarded")
+			state = Interactive_Modes.MODE_SELECT
+
+		elif state == Interactive_Modes.REMOVE:
+			prompt_input = input("Title number to remove: ")
+			if prompt_input.isnumeric():
+				for result in search_results:
+					if result["Text#"] == prompt_input:
+						search_results.remove(result)
+						print(f"Text#{prompt_input} removed")
+			else: 
+				print("Invalid Text#")
+			state = Interactive_Modes.MODE_SELECT
+
+		elif state == Interactive_Modes.VIEW:
+			# TO-DO: Re-use args.report behavior
+			prompt_input = input("View (s)imple or (d)etailed summary? ")
+			if prompt_input == "s":
+				for result in search_results:
+					print(result.description())
+				state = Interactive_Modes.MODE_SELECT
+			elif prompt_input == "d":
+				for result in search_results:
+					print(result)
+				state = Interactive_Modes.MODE_SELECT
+			else:
+				print("Invalid command")
+
+		elif state == Interactive_Modes.FINISH:
+			print("Finishing...")
+			running = False
+	return search_results
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser(
@@ -64,112 +136,38 @@ if __name__ == "__main__":
 #	if args.out: greb.book_dir = args.out
 
 	if not args.noupdate:
-		print("Checking for catalog updates...")
 		update, response = greb.check_for_catalog_updates()	
 		if update:
-			print("Updating catalog...")
 			update = greb.download_catalog(response)
-			print("Catalog updated.")
-		else:
-			print("No updates found.")	
 
 	search_results = []
 	if greb.catalog_exists():
 		if args.interactive:
-			# TO-DO: Handle keyword/fields args
-			state = Interactive_Modes.MODE_SELECT
-			running = True
-
-			while running:
-				if state == Interactive_Modes.MODE_SELECT:
-					prompt_input = input("(s)earch, (r)emove from results, (v)iew results, (f)inish\n")	
-					if prompt_input == "s":
-						state = Interactive_Modes.SEARCH
-					elif prompt_input == "r":
-						state = Interactive_Modes.REMOVE
-					elif prompt_input == "v":
-						state = Interactive_Modes.VIEW
-					elif prompt_input == "f":
-						state = Interactive_Modes.FINISH
-					else:
-						print("Invalid command")
-
-				elif state == Interactive_Modes.SEARCH:
-					prompt_input = input("Search keywords (comma-separated): ")
-					keywords = prompt_input.split(",")
-					prompt_input = input("Search fields (comma-separated): ")
-					fields = prompt_input.split(",")
-					print(f"Searching for {keywords} in {fields}")
-					new_results = greb.search_catalog(keywords, fields)
-					print("Search results: ")
-					for r in new_results:
-						print(f"{r['Text#']}: {r['Title']}")
-					prompt_input = input("Add to final results? (y) or (n) ")
-					if prompt_input == "y":
-						for r in new_results:
-							if r not in search_results:
-								search_results.append(r)
-					else:
-						print("Results discarded")
-					state = Interactive_Modes.MODE_SELECT
-
-				elif state == Interactive_Modes.REMOVE:
-					prompt_input = input("Title number to remove: ")
-					if prompt_input.isnumeric():
-						for result in search_results:
-							if result["Text#"] == prompt_input:
-								search_results.remove(result)
-								print(f"Text#{prompt_input} removed")
-					else: 
-						print("Invalid Text#")
-					state = Interactive_Modes.MODE_SELECT
-
-				elif state == Interactive_Modes.VIEW:
-					# TO-DO: Re-use args.report behavior
-					prompt_input = input("View (s)imple or (d)etailed summary? ")
-					if prompt_input == "s":
-						for result in search_results:
-							print(result.summary())
-						state = Interactive_Modes.MODE_SELECT
-					elif prompt_input == "d":
-						for result in search_results:
-							print(result)
-						state = Interactive_Modes.MODE_SELECT
-					else:
-						print("Invalid command")
-
-				elif state == Interactive_Modes.FINISH:
-					print("Finishing...")
-					running = False
-
-		elif not args.download:
-				print(f"Searching for keywords {args.keywords} in fields {args.fields}...") 
-				search_results = greb.search_catalog(args.keywords, args.fields)
-		else: # Download-only mode
+			search_results = interactive_mode(args)
+		elif args.download:
 			for word in args.keywords:
 				if word.isnumeric():
 					result = greb.search_catalog([word], ["Text#"])
 					if len(result):	search_results.append( result[0] )	
-					else:			print(f"Text number {word} not found.")
+					else:			print(f"Text number {word} not found.", file=sys.stderr)
 				else:
-					print(f"Invalid Text#: {word}")	
+					print(f"Invalid Text#: {word}", file=sys.stderr)	
+		else:
+			search_results = greb.search_catalog(args.keywords, args.fields)
 	else: # not catalog_exists()
-		print("Failed to open catalog")
+		print("Failed to open catalog.", file=sys.stderr)
 
 	if not args.search:
 		for result in search_results:
 			for format in args.formats:
 				book_path = greb.book_dir+greb.format_file_name(result["Text#"], result["Title"], format)
 				if os.path.isfile(book_path):
-					print(f"Local copy exists for {format} for {result.description()}")
-					continue
-
-				print(f"Attempting to download {format} for {result['Text#']}: {result['Title']}.")
-
-				success = greb.download_title(result["Text#"], result["Title"], format)
+					success = True
+				else:
+					success = greb.download_title(result["Text#"], result["Title"], format)
 
 				if success:
-					print(f"Downloaded {result['Text#']}: {result['Title']} ({format}).")
+					print(book_path)
 	else: # search-only mode
 		output = ""
 		for result in search_results:
@@ -179,7 +177,6 @@ if __name__ == "__main__":
 	if args.report:
 		width = os.get_terminal_size()[0]
 		divider = "\n" + "-" * (width//1) + "\n"
-		print("\nGREB RESULTS:")
 		print(divider)
 		for result in search_results:
 			for key in result:

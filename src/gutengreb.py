@@ -38,7 +38,10 @@ class Greb_Result:
 
 	def description(self):
 		return "{}: {}".format(self.row["Text#"], self.row["Title"])
-	
+
+	def __iter__(self):
+		return iter(self.row.keys())
+
 	def __getitem__(self, key):
 		return self.row[key]
 	
@@ -123,7 +126,6 @@ def download_catalog(response=None):
 
 	return True
 
-# TO-DO: Improve field parsing (e.g. author lastname, firstname format)
 def search_catalog(keywords, fields=["Title"], languages=["en"]):
 	# type: (list[str], list[str], list[str]) -> list[Greb_Result]
 	result = []
