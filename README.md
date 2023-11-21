@@ -5,3 +5,19 @@ As these rules aren't particularly explicit about what constitutes "the Project 
 See their official recommendations for bulk downloading and mirroring large numbers of their files.
 
 Gutengreb can check and download the latest catalog (updated once per week), search it for books given a list of keywords, and download ebooks in a variety of formats based on those results.
+
+# Using the CLI
+
+The command-line interface takes one positional argument, a comma-separate list of keywords, and multiple optional arguments.
+It currently downloads the catalog and ebooks to `books/` in the current working directory.
+
+| Argument 				| Default	| 							Description									|
+| --------------------- | --------- | --------------------------------------------------------------------- |
+| `keywords`			|   N/A   	| A comma-separated list of keywords used for searching and downloading |
+| `-f`/`--formats`		| `"txt"`	| A comma-separated list of file formats to be downloaded |
+| `-f2`/`--fields`		| `"Title"`	| A comma=separated list of metadata fields to search |
+| `--noupdate` 			| `False` 	| Disable the default catalog update check and download |
+| `-r`/`--report`		| `False` 	| Print a verbose report of the search results |
+| `-i`/`--interactive`	| `False` 	| Enter interactive mode to search and filter results in realtime |
+| `-d`/`--download`		| `False` 	| Download a set of books, given a list of Title#s passed as keywords |
+| `-s`/`--search`		| `False` 	| Search and output a list of Title#s |
