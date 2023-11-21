@@ -53,7 +53,8 @@ class Greb_Result:
 	def __str__(self):
 		result = ""
 		for key in self.row:
-			result += "{}: {}".format(key, self.row[key])
+			result += "{}: {}\n".format(key, self.row[key])
+		return result[:-1] # exclude trailing newline
 
 # Expected date format: "Mon, 00 Jan 2023 00:00:00 GMT"
 def __parse_date_header(date):

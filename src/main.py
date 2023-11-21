@@ -8,9 +8,9 @@ import gutengreb as greb
 class Interactive_Modes(enum.IntEnum):
 	MODE_SELECT = 0
 	SEARCH = enum.auto()
-	REMOVE = enum.auto()
 	VIEW = enum.auto()
-	FINISH = enum.auto()
+	FILTER = enum.auto()
+	QUIT = enum.auto()
 
 def comma_separated_list(list_str):
 	return list_str.split(",")
@@ -41,6 +41,15 @@ def validate_args(args):
 
 	return True
 
+def report_greb_results(results):
+	# type: (list[greb.Greb_Result]) -> None
+	width = os.get_terminal_size()[0]
+	divider = "-"*width
+	print(divider)
+	for result in results:
+		print(result)
+		print(divider)
+
 def interactive_mode(args):
 	search_results = []
 	state = Interactive_Modes.MODE_SELECT
@@ -48,15 +57,15 @@ def interactive_mode(args):
 
 	while running:
 		if state == Interactive_Modes.MODE_SELECT:
-			prompt_input = input("(s)earch, (r)emove from results, (v)iew results, (f)inish\n")	
+			prompt_input = input("(s)earch, (v)iew results, (f)ilter results, (q)uit and execute\n")	
 			if prompt_input == "s":
 				state = Interactive_Modes.SEARCH
-			elif prompt_input == "r":
-				state = Interactive_Modes.REMOVE
 			elif prompt_input == "v":
 				state = Interactive_Modes.VIEW
 			elif prompt_input == "f":
-				state = Interactive_Modes.FINISH
+				state = Interactive_Modes.FILTER
+			elif prompt_input == "q":
+				state = Interactive_Modes.QUIT
 			else:
 				print("Invalid command")
 
@@ -81,33 +90,58 @@ def interactive_mode(args):
 				print("Results discarded")
 			state = Interactive_Modes.MODE_SELECT
 
-		elif state == Interactive_Modes.REMOVE:
-			prompt_input = input("Title number to remove: ")
-			if prompt_input.isnumeric():
-				for result in search_results:
-					if result["Text#"] == prompt_input:
-						search_results.remove(result)
-						print(f"Text#{prompt_input} removed")
-			else: 
-				print("Invalid Text#")
+		elif state == Interactive_Modes.FILTER:
+			prompt_input = input("Filter keywords (comma-separated): ")
+			keywords = prompt_input.split(",")
+			prompt_input = input("Filter fields (comma-separated): ")
+			fields = prompt_input.split(",")
+
+			new_results = []
+			while True:
+				prompt_input = input("(i)nclusive or (e)xclusive: ")
+				if prompt_input != "i" and prompt_input != "e":
+					print("Invalid response: (i)nclusive or (e)xclusive: ")
+				else: break
+
+			for result in search_results:
+				found = False
+				for words in keywords:
+					for w in words.split(" "):
+						for f in fields:
+							found = f in result and w in result[f]
+							if found: break
+						if found: break
+					if found: break
+				if found:
+					if prompt_input == "i":
+						new_results.append(result)
+				elif prompt_input == "e":
+					new_results.append(result)
+			
+			print("Filtered results: ")
+			for r in new_results:
+				print(r.description())
+			prompt_input = input("Update final results? (y) or (n) ")
+			if prompt_input == "y":
+				search_results = new_results
+			else:
+				print("Filtered results discarded")
 			state = Interactive_Modes.MODE_SELECT
 
 		elif state == Interactive_Modes.VIEW:
-			# TO-DO: Re-use args.report behavior
 			prompt_input = input("View (s)imple or (d)etailed summary? ")
 			if prompt_input == "s":
 				for result in search_results:
 					print(result.description())
 				state = Interactive_Modes.MODE_SELECT
 			elif prompt_input == "d":
-				for result in search_results:
-					print(result)
+				report_greb_results(search_results)
 				state = Interactive_Modes.MODE_SELECT
 			else:
 				print("Invalid command")
 
-		elif state == Interactive_Modes.FINISH:
-			print("Finishing...")
+		elif state == Interactive_Modes.QUIT:
+			print("Quitting and processing results...")
 			running = False
 	return search_results
 
@@ -175,10 +209,4 @@ if __name__ == "__main__":
 		print(output[:-1])
 
 	if args.report:
-		width = os.get_terminal_size()[0]
-		divider = "\n" + "-" * (width//1) + "\n"
-		print(divider)
-		for result in search_results:
-			for key in result:
-				print(f"{key}: {result[key]}")
-			print(divider)
+		report_greb_results(search_results)
