@@ -12,6 +12,8 @@ class Interactive_Modes(enum.IntEnum):
 	QUIT = enum.auto()
 
 def comma_separated_list(list_str):
+	if len(list_str) == 0:
+		return []
 	return list_str.split(",")
 
 def validate_args(args):
@@ -51,9 +53,17 @@ def report_greb_results(results):
 
 def interactive_mode(args):
 	search_results = []
-	state = Interactive_Modes.MODE_SELECT
+	keywords = args.keywords
+	fields = args.fields	
+	if keywords:
+		state = Interactive_Modes.SEARCH
+		initial_search = True
+	else:
+		state = Interactive_Modes.MODE_SELECT
+		initial_search = False
 	running = True
 
+	print("Starting Gutengreb in Interactive Mode")
 	while running:
 		if state == Interactive_Modes.MODE_SELECT:
 			prompt_input = input("(s)earch, (v)iew results, (f)ilter results, (q)uit and execute\n")	
@@ -69,10 +79,13 @@ def interactive_mode(args):
 				print("Invalid command")
 
 		elif state == Interactive_Modes.SEARCH:
-			prompt_input = input("Search keywords (comma-separated): ")
-			keywords = prompt_input.split(",")
-			prompt_input = input("Search fields (comma-separated): ")
-			fields = prompt_input.split(",")
+			if not initial_search:
+				prompt_input = input("Search keywords (comma-separated): ")
+				keywords = prompt_input.split(",")
+				prompt_input = input("Search fields (comma-separated): ")
+				fields = prompt_input.split(",")
+			else:
+				initial_search = False
 
 			print(f"Searching for {keywords} in {fields}")
 			new_results = greb.search_catalog(keywords, fields)
@@ -163,7 +176,7 @@ if __name__ == "__main__":
 	group.add_argument("-d", "--download", action="store_true", help="Download ebooks, given list of Project Gutenbook book text #s")
 	group.add_argument("-s", "--search", action="store_true", help="Search catalog and print as list of text #s")
 	
-	args = parser.parse_args()
+	args = parser.parse_args(["", "-i"])
 	if not validate_args(args):
 		exit()
 
@@ -197,7 +210,12 @@ if __name__ == "__main__":
 	else: # not catalog_exists()
 		print("Failed to open catalog.", file=sys.stderr)
 
-	if not args.search:
+	if args.search:
+		output = ""
+		for result in search_results:
+			output += result["Text#"]+","
+		print(output[:-1])
+	else:
 		for result in search_results:
 			for format in args.formats:
 				book_path = greb.book_dir+greb.format_file_name(result["Text#"], result["Title"], format)
@@ -208,11 +226,6 @@ if __name__ == "__main__":
 
 				if success:
 					print(book_path)
-	else: # search-only mode
-		output = ""
-		for result in search_results:
-			output += result["Text#"]+","
-		print(output[:-1])
 
 	if args.report:
 		report_greb_results(search_results)
