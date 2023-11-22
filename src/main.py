@@ -1,5 +1,4 @@
 import argparse
-from re import search
 import sys
 import os.path
 import enum
@@ -154,7 +153,8 @@ if __name__ == "__main__":
 	parser.add_argument("keywords", type=comma_separated_list, help="Search keywords. In (-d)ownload mode, list of ebook text #s")
 	parser.add_argument("-f", "--formats", type=comma_separated_list, default=["txt"], help="ebook formats to download")
 	parser.add_argument("-f2", "--fields", type=comma_separated_list, default=["Title"], help="Metadata fields to search for keywords")
-#	parser.add_argument("-o", "--out", type=str, help="Output directory for downloaded files") 
+	parser.add_argument("-o", "--out", type=str, help="Output directory for book downloads") 
+	parser.add_argument("-c", "--catalog", type=str, help="Set catalog file location (defaults to book directory)")
 	parser.add_argument("--noupdate", action="store_true", help="Skip catalog update check")
 	parser.add_argument("-r", "--report", action="store_true", help="Print metadata for all search and download results.")
 
@@ -167,7 +167,13 @@ if __name__ == "__main__":
 	if not validate_args(args):
 		exit()
 
-#	if args.out: greb.book_dir = args.out
+	if args.out: 
+		greb.book_dir = args.out
+		if not args.catalog:
+			greb.catalog_dir = args.out
+
+	if args.catalog:
+		greb.catalog_dir = args.catalog
 
 	if not args.noupdate:
 		update, response = greb.check_for_catalog_updates()	

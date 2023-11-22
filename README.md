@@ -17,7 +17,9 @@ It currently downloads the catalog and ebooks to `books/` in the current working
 | `-f`/`--formats`		| `"txt"`	| A comma-separated list of file formats to be downloaded |
 | `-f2`/`--fields`		| `"Title"`	| A comma=separated list of metadata fields to search |
 | `--noupdate` 			| `False` 	| Disable the default catalog update check and download |
+| `-o`/`--out`			| `books/`	| Set the output directory for book/catalog downloads. |
+| `-c`/`--catalog`		| `books/`	| Set the download directory for the catalog (takes prioritity over `-o` value) |
 | `-r`/`--report`		| `False` 	| Print a verbose report of the search results |
-| `-i`/`--interactive`	| `False` 	| Enter interactive mode to search and filter results in realtime |
+| `-i`/`--interactive`	| `False` 	| Enter interactive mode to search and filter results in real-time |
 | `-d`/`--download`		| `False` 	| Download a set of books, given a list of Title#s passed as keywords |
 | `-s`/`--search`		| `False` 	| Search and output a list of Title#s |

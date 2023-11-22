@@ -8,9 +8,11 @@ import gzip
 import csv
 
 DEFAULT_BOOK_DIR = "books/"
+DEFAULT_CATALOG_DIR = DEFAULT_BOOK_DIR
 GB_HOST = "https://www.gutenberg.org"
 GB_CACHE_PATH = "/cache/epub/"
 GB_CATALOG_PATH = GB_CACHE_PATH+"feeds/pg_catalog.csv.gz"
+
 
 FILE_EXTENSIONS = {
 	"html"					: "-images.html",
@@ -29,6 +31,7 @@ SEARCH_FIELDS = {
 }
 
 book_dir = DEFAULT_BOOK_DIR
+catalog_dir = DEFAULT_CATALOG_DIR
 
 class Greb_Result:
 	def __init__(self, relevance = 0, row = {}):
@@ -74,7 +77,7 @@ def __parse_date_header(date):
 
 def get_local_catalog_path():
 	# type: () -> str
-	return book_dir+"catalog.csv.gz"
+	return catalog_dir+"catalog.csv.gz"
 
 def catalog_exists():
 	# type: () -> bool
@@ -116,7 +119,7 @@ def download_catalog(response=None):
 		print(e)	
 		return False
 	else:
-		if not os.path.isdir(book_dir): os.makedirs(book_dir)
+		os.makedirs(catalog_dir, exist_ok=True)
 
 		temp_buf = response.read()
 		response.close()
@@ -162,6 +165,7 @@ def download_title(title_number, title=None, format="txt"):
 		print(e)
 		return False
 	else:
+		os.makedirs(book_dir, exist_ok=True)
 		file_path = book_dir+format_file_name(title_number, title, format)
 		buf = response.read() 
 		with open(file_path, "wb") as save_file:
